@@ -99,6 +99,7 @@ public class SecurityConfig {
         configuration.addAllowedOriginPattern("*"); // Use addAllowedOriginPattern for wildcard support
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
+        configuration.addExposedHeader("Authorization");
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
