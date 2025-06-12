@@ -1,0 +1,25 @@
+### Debug Test - Step 1: Login
+POST http://localhost:8085/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=12345
+
+> {%
+    client.global.set("debugToken", response.body.access_token);
+    client.log("DEBUG: Token received: " + response.body.access_token);
+    client.log("DEBUG: Token length: " + response.body.access_token.length);
+%}
+
+### Debug Test - Step 2: Test Profile
+GET http://localhost:8085/auth/profile
+Authorization: Bearer {{debugToken}}
+
+### Debug Test - Step 3: Test Customer
+GET http://localhost:8085/customers/1
+Accept: application/json
+Authorization: Bearer {{debugToken}}
+
+### Debug Test - Step 4: Test All Customers
+GET http://localhost:8085/customers
+Accept: application/json
+Authorization: Bearer {{debugToken}}

@@ -1,0 +1,452 @@
+### ===========================================
+### EBANKING API - ALL ENDPOINTS
+### ===========================================
+
+### Variables
+@baseUrl = http://localhost:8085
+
+### ===========================================
+### AUTHENTICATION SECTION
+### ===========================================
+
+### Login as Admin (has both USER and ADMIN authorities)
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=12345
+
+> {%
+    client.global.set("authToken", response.body.access_token);
+    client.log("Admin token set: " + response.body.access_token);
+%}
+
+
+### Get current user profile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{authToken}}
+
+### ===========================================
+### CUSTOMERS SECTION (CustomerRestController)
+### ===========================================
+
+### Get all customers (Requires USER authority)
+GET {{baseUrl}}/customers
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Search customers by keyword (Requires USER authority)
+GET {{baseUrl}}/customers/search?keyword=Hassan
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Search customers with empty keyword (Requires USER authority)
+GET {{baseUrl}}/customers/search
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Alternative search endpoint (for frontend compatibility)
+GET {{baseUrl}}/search?keyword=test
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Alternative search with empty keyword
+GET {{baseUrl}}/search
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### ===========================================
+### 🧪 FRONTEND COMPATIBILITY TESTS
+### ===========================================
+
+### 🔍 Test 1: Frontend search endpoint (exactly as frontend calls it)
+GET {{baseUrl}}/search?keyword=john
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {%
+    client.test("Frontend search endpoint works", function() {
+        client.assert(response.status === 200, "Should return 200 OK");
+        client.assert(Array.isArray(response.body), "Should return an array");
+        client.log("✅ Frontend search test passed - found " + response.body.length + " customers");
+    });
+%}
+
+### 🔍 Test 2: Frontend search with empty keyword
+GET {{baseUrl}}/search
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {%
+    client.test("Frontend search with empty keyword works", function() {
+        client.assert(response.status === 200, "Should return 200 OK");
+        client.assert(Array.isArray(response.body), "Should return an array");
+        client.log("✅ Frontend empty search test passed - found " + response.body.length + " customers");
+    });
+%}
+
+### 🔍 Test 3: Frontend search with special characters
+GET {{baseUrl}}/search?keyword=@test
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {%
+    client.test("Frontend search with special chars works", function() {
+        client.assert(response.status === 200, "Should return 200 OK");
+        client.assert(Array.isArray(response.body), "Should return an array");
+        client.log("✅ Frontend special chars search test passed");
+    });
+%}
+
+### 🔍 Test 4: Compare both endpoints (should return same results)
+GET {{baseUrl}}/customers/search?keyword=test
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {%
+    client.global.set("originalSearchResults", JSON.stringify(response.body));
+    client.log("📊 Original endpoint results stored");
+%}
+
+### 🔍 Test 5: Alternative endpoint comparison
+GET {{baseUrl}}/search?keyword=test
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {%
+    client.test("Both search endpoints return same results", function() {
+        const originalResults = client.global.get("originalSearchResults");
+        const alternativeResults = JSON.stringify(response.body);
+        client.assert(originalResults === alternativeResults, "Both endpoints should return identical results");
+        client.log("✅ Endpoint consistency test passed - both return same data");
+    });
+%}
+
+### 🔍 Test 6: Frontend authentication test (should fail without token)
+GET {{baseUrl}}/search?keyword=test
+Accept: application/json
+
+> {%
+    client.test("Frontend endpoint requires authentication", function() {
+        client.assert(response.status === 401, "Should return 401 Unauthorized without token");
+        client.log("✅ Authentication test passed - endpoint is secured");
+    });
+%}
+
+### ===========================================
+### 🚀 FRONTEND INTEGRATION WORKFLOW
+### ===========================================
+
+### 🚀 Frontend Test Step 1: Login (as frontend would do)
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=12345
+
+> {%
+    client.global.set("frontendToken", response.body.access_token);
+    client.log("🚀 Frontend login simulation - token obtained");
+%}
+
+### 🚀 Frontend Test Step 2: Search customers (as frontend would do)
+GET {{baseUrl}}/search?keyword=test
+Accept: application/json
+Authorization: Bearer {{frontendToken}}
+
+> {%
+    client.global.set("searchResults", response.body);
+    client.test("Frontend search simulation", function() {
+        client.assert(response.status === 200, "Search should succeed");
+        client.assert(Array.isArray(response.body), "Should return customer array");
+    });
+    client.log("🚀 Frontend search simulation - found " + response.body.length + " customers");
+%}
+
+### 🚀 Frontend Test Step 3: Get all customers (as frontend would do)
+GET {{baseUrl}}/customers
+Accept: application/json
+Authorization: Bearer {{frontendToken}}
+
+> {%
+    client.test("Frontend get all customers", function() {
+        client.assert(response.status === 200, "Should get all customers");
+        client.assert(Array.isArray(response.body), "Should return customer array");
+    });
+    client.log("🚀 Frontend get all customers - found " + response.body.length + " total customers");
+%}
+
+### 🚀 Frontend Test Step 4: Test error handling (invalid search)
+GET {{baseUrl}}/search?keyword=nonexistentcustomer12345
+Accept: application/json
+Authorization: Bearer {{frontendToken}}
+
+> {%
+    client.test("Frontend handles empty search results", function() {
+        client.assert(response.status === 200, "Should return 200 even for no results");
+        client.assert(Array.isArray(response.body), "Should return empty array");
+        client.assert(response.body.length === 0, "Should return empty array for no matches");
+    });
+    client.log("🚀 Frontend empty results test - handled gracefully");
+%}
+
+### Get specific customer by ID (Requires USER authority)
+GET {{baseUrl}}/customers/1
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Create new customer (Requires ADMIN authority - use admin login first!)
+POST {{baseUrl}}/customers
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com"
+}
+
+### Update existing customer (Requires ADMIN authority - replace ID)
+PUT {{baseUrl}}/customers/1
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "John Doe Updated",
+  "email": "john.doe.updated@example.com"
+}
+
+### Delete customer (Requires ADMIN authority - replace ID)
+DELETE {{baseUrl}}/customers/1
+Authorization: Bearer {{authToken}}
+
+### ===========================================
+### BANK ACCOUNTS SECTION (BankAccountRestAPI)
+### ===========================================
+
+### Get all bank accounts (Requires USER authority)
+GET {{baseUrl}}/accounts
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Get specific bank account by ID (Requires USER authority)
+GET {{baseUrl}}/accounts/ACCOUNT_ID_HERE
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Get account operations history (Requires USER authority)
+GET {{baseUrl}}/accounts/ACCOUNT_ID_HERE/operations
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Get account history with pagination (Requires USER authority)
+GET {{baseUrl}}/accounts/ACCOUNT_ID_HERE/pageOperations?page=0&size=5
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Get account history with different pagination
+GET {{baseUrl}}/accounts/ACCOUNT_ID_HERE/pageOperations?page=1&size=10
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### ===========================================
+### ACCOUNT OPERATIONS SECTION
+### ===========================================
+
+### Debit account (Requires USER authority)
+POST {{baseUrl}}/accounts/debit
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountId": "ACCOUNT_ID_HERE",
+  "amount": 100.0,
+  "description": "Test debit operation"
+}
+
+### Credit account (Requires USER authority)
+POST {{baseUrl}}/accounts/credit
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountId": "ACCOUNT_ID_HERE",
+  "amount": 200.0,
+  "description": "Test credit operation"
+}
+
+### Transfer between accounts (Requires USER authority)
+POST {{baseUrl}}/accounts/transfer
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountSource": "SOURCE_ACCOUNT_ID_HERE",
+  "accountDestination": "DESTINATION_ACCOUNT_ID_HERE",
+  "amount": 50.0
+}
+
+### ===========================================
+### TESTING WITH REAL DATA
+### ===========================================
+
+### Step 1: Login as admin to create a customer
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=12345
+
+> {%
+    client.global.set("authToken", response.body.access_token);
+%}
+
+### Step 2: Create a test customer
+POST {{baseUrl}}/customers
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Test Customer",
+  "email": "test@example.com"
+}
+
+> {%
+    client.global.set("customerId", response.body.id);
+    client.log("Customer created with ID: " + response.body.id);
+%}
+
+### Step 3: Get all accounts to find real account IDs
+GET {{baseUrl}}/accounts
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {%
+    if (response.body && response.body.length > 0) {
+        client.global.set("accountId1", response.body[0].id);
+        client.log("First account ID: " + response.body[0].id);
+        if (response.body.length > 1) {
+            client.global.set("accountId2", response.body[1].id);
+            client.log("Second account ID: " + response.body[1].id);
+        }
+    }
+%}
+
+### Step 4: Test with real account ID - Get specific account
+GET {{baseUrl}}/accounts/{{accountId1}}
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Step 5: Test with real account ID - Get operations
+GET {{baseUrl}}/accounts/{{accountId1}}/operations
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Step 6: Test with real account ID - Get paginated history
+GET {{baseUrl}}/accounts/{{accountId1}}/pageOperations?page=0&size=5
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Step 7: Test credit operation with real account ID
+POST {{baseUrl}}/accounts/credit
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountId": "{{accountId1}}",
+  "amount": 500.0,
+  "description": "Test credit via API"
+}
+
+### Step 8: Test debit operation with real account ID
+POST {{baseUrl}}/accounts/debit
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountId": "{{accountId1}}",
+  "amount": 100.0,
+  "description": "Test debit via API"
+}
+
+### Step 9: Test transfer between accounts (if you have 2+ accounts)
+POST {{baseUrl}}/accounts/transfer
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountSource": "{{accountId1}}",
+  "accountDestination": "{{accountId2}}",
+  "amount": 50.0
+}
+
+### ===========================================
+### ERROR TESTING SECTION
+### ===========================================
+
+### Test with invalid account ID
+GET {{baseUrl}}/accounts/INVALID_ID
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+### Test debit with insufficient balance
+POST {{baseUrl}}/accounts/debit
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountId": "{{accountId1}}",
+  "amount": 999999.0,
+  "description": "Test insufficient balance"
+}
+
+### Test without authentication (should fail)
+GET {{baseUrl}}/accounts
+Accept: application/json
+
+### Test with user authority on admin endpoint (should fail)
+# First login as regular user
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=user1&password=12345
+
+> {%
+    client.global.set("userToken", response.body.access_token);
+%}
+
+### Try to create customer with user token (should fail - needs ADMIN)
+POST {{baseUrl}}/customers
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+  "name": "Should Fail",
+  "email": "fail@example.com"
+}
+
+### ===========================================
+### UTILITY REQUESTS
+### ===========================================
+
+### Check if server is running
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{authToken}}
+
+### Get fresh admin token
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=12345
+
+> {%
+    client.global.set("authToken", response.body.access_token);
+    client.log("Fresh admin token: " + response.body.access_token);
+%}
+
+### Get fresh user token
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=user1&password=12345
+
+> {%
+    client.global.set("userToken", response.body.access_token);
+    client.log("Fresh user token: " + response.body.access_token);
+%}

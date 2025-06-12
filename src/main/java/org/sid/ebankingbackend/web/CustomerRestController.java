@@ -27,6 +27,13 @@ public class CustomerRestController {
     public List<CustomerDTO> searchCustomers(@RequestParam(name = "keyword",defaultValue = "") String keyword){
         return bankAccountService.searchCustomers("%"+keyword+"%");
     }
+    
+    // Alternative search endpoint for frontend compatibility
+    @GetMapping("/search")
+    @PreAuthorize("hasAuthority('SCOPE_USER')")
+    public List<CustomerDTO> searchCustomersAlternative(@RequestParam(name = "keyword",defaultValue = "") String keyword){
+        return bankAccountService.searchCustomers("%"+keyword+"%");
+    }
     @GetMapping("/customers/{id}")
     @PreAuthorize("hasAuthority('SCOPE_USER')")
     public CustomerDTO getCustomer(@PathVariable(name = "id") Long customerId) throws CustomerNotFoundException {
